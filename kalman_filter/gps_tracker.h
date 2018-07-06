@@ -29,9 +29,10 @@ struct Gps_tracker {
   Gps_tracker(common::Time time, const transform::Rigid2d& gps_pose);
   Gps_tracker() {}
 
-  common::Time time = common::Time::min();
+  int64 time =0;
   transform::Rigid2d gps_pose = transform::Rigid2d::Identity();
-
+  transform::Rigid2d gps_covariance =transform::Rigid2d::Identity();
+  int32 gps_flag=0;
 };
 
 // Keeps track of the odometry states by keeping sliding window over some

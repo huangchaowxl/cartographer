@@ -83,11 +83,6 @@ void GlobalTrajectoryBuilder::AddGpsCalibData(
  // return common::make_unique<transform::Rigid3d>tracking_2d_to_map;
 }
 
-void GlobalTrajectoryBuilder::AddGpsData(
-    const common::Time time, const cartographer::transform::Rigid2d& gps_data) {
-  // Initialize pose tracker now if we do not ever use an IMU.
 
- // return common::make_unique<transform::Rigid3d>tracking_2d_to_map;
-}
 }  // namespace mapping_3d
 }  // namespace cartographer

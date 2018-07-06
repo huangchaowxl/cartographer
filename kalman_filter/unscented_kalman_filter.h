@@ -27,7 +27,8 @@
 #include "Eigen/Eigenvalues"
 #include "cartographer/kalman_filter/gaussian_distribution.h"
 #include "glog/logging.h"
-
+#include <iostream>
+using namespace std;
 namespace cartographer {
 namespace kalman_filter {
 
@@ -155,6 +156,7 @@ class UnscentedKalmanFilter {
     // As in Kraft's paper, we compute W containing the zero-mean sigma points,
     // since this is all we need.
     std::vector<StateType> W;
+
     W.reserve(2 * N + 1);
     W.emplace_back(StateType::Zero());
 
@@ -208,6 +210,72 @@ class UnscentedKalmanFilter {
   const GaussianDistribution<FloatType, N>& GetBelief() const {
     return belief_;
   }
+  template <int K>
+  void Observe(
+      std::function<Eigen::Matrix<FloatType, K, 1>(const StateType&)> h,
+       GaussianDistribution<FloatType, K>& delta,Eigen::Matrix<FloatType, K, 1> &gps_observation) {
+    CheckSymmetric(delta.GetCovariance());
+    // We expect zero mean delta.
+    CHECK_NEAR(delta.GetMean().norm(), 0., 1e-9);
+
+    // Get the state mean and matrix root of its covariance.
+    const StateType& mu = belief_.GetMean();
+    const StateCovarianceType sqrt_sigma = MatrixSqrt(belief_.GetCovariance());
+
+    // As in Kraft's paper, we compute W containing the zero-mean sigma points,
+    // since this is all we need.
+    std::vector<StateType> W;
+
+    W.reserve(2 * N + 1);
+    W.emplace_back(StateType::Zero());
+
+    std::vector<Eigen::Matrix<FloatType, K, 1>> Z;
+    Z.reserve(2 * N + 1);
+    Z.emplace_back(h(mu));
+
+    Eigen::Matrix<FloatType, K, 1> z_hat = kMeanWeight0 * Z[0];
+    const FloatType kSqrtNPlusLambda = std::sqrt(N + kLambda);
+    for (int i = 0; i < N; ++i) {
+      // Order does not matter here as all have the same weights in the
+      // summation later on anyways.
+      W.emplace_back(kSqrtNPlusLambda * sqrt_sigma.col(i));
+      Z.emplace_back(h(add_delta_(mu, W.back())));
+
+      W.emplace_back(-kSqrtNPlusLambda * sqrt_sigma.col(i));
+      Z.emplace_back(h(add_delta_(mu, W.back())));
+
+      z_hat += kMeanWeightI * Z[2 * i + 1];
+      z_hat += kMeanWeightI * Z[2 * i + 2];
+    }
+
+    Eigen::Matrix<FloatType, K, K> S =
+        kCovWeight0 * OuterProduct<FloatType, K>(Z[0] - z_hat);
+    for (int i = 0; i < N; ++i) {
+      S += kCovWeightI * OuterProduct<FloatType, K>(Z[2 * i + 1] - z_hat);
+      S += kCovWeightI * OuterProduct<FloatType, K>(Z[2 * i + 2] - z_hat);
+    }
+    CheckSymmetric(S);
+    S += delta.GetCovariance();
+
+    Eigen::Matrix<FloatType, N, K> sigma_bar_xz =
+        kCovWeight0 * W[0] * (Z[0] - z_hat).transpose();
+    for (int i = 0; i < N; ++i) {
+      sigma_bar_xz +=
+          kCovWeightI * W[2 * i + 1] * (Z[2 * i + 1] - z_hat).transpose();
+      sigma_bar_xz +=
+          kCovWeightI * W[2 * i + 2] * (Z[2 * i + 2] - z_hat).transpose();
+    }
+
+    const Eigen::Matrix<FloatType, N, K> kalman_gain =
+        sigma_bar_xz * S.inverse();
+    const StateCovarianceType new_sigma =
+        belief_.GetCovariance() - kalman_gain * S * kalman_gain.transpose();
+    CheckSymmetric(new_sigma);
+
+    belief_ = GaussianDistribution<FloatType, N>(
+        add_delta_(mu, kalman_gain * (gps_observation-z_hat)), new_sigma);
+  }
+
 
  private:
   StateType ComputeWeightedError(const StateType& mean_estimate,

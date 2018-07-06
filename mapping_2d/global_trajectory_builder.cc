@@ -16,7 +16,7 @@
 
 #include "cartographer/mapping_2d/global_trajectory_builder.h"
 #include <iostream>
-
+int count_gps=0;
 using namespace std;
 namespace cartographer {
 namespace mapping_2d {
@@ -47,13 +47,13 @@ void GlobalTrajectoryBuilder::AddHorizontalLaserFan(
   std::unique_ptr<LocalTrajectoryBuilder::InsertionResult> insertion_result =
       local_trajectory_builder_.AddHorizontalLaserFan(time, laser_fan);
   if (insertion_result != nullptr) {
-  /*  sparse_pose_graph_->AddScan(
+    sparse_pose_graph_->AddScan(
         insertion_result->time, insertion_result->tracking_to_tracking_2d,
         insertion_result->laser_fan_in_tracking_2d,
         insertion_result->pose_estimate_2d,
         kalman_filter::Project2D(insertion_result->covariance_estimate),
         insertion_result->submaps, insertion_result->matching_submap,
-        insertion_result->insertion_submaps);*/
+        insertion_result->insertion_submaps);
   }
 }
 
@@ -86,11 +86,18 @@ void GlobalTrajectoryBuilder::AddGpsCalibData(
 }
 
 void GlobalTrajectoryBuilder::AddGpsData(
-    const common::Time time, const cartographer::transform::Rigid2d& gps_data) {
+    int64 timestamp, const cartographer::transform::Rigid2d& gps_data,
+    const cartographer::transform::Rigid2d& gps_data_covariance,int32 gps_flag ) {
   // Initialize pose tracker now if we do not ever use an IMU.
-  local_trajectory_builder_.pose_tracker()->SetGpsPose(gps_data);
-
-  LOG(INFO) <<"gps data is coming ----->>>>>"<< gps_data.translation();
+  local_trajectory_builder_.pose_tracker()->SetGpsPose(timestamp,gps_data,gps_data_covariance,gps_flag);
+  count_gps++;
+  //LOG(INFO) <<"gps data time >>>>>"<<timestamp<<endl;
+  if(count_gps==9000)
+ {
+    // LOG(INFO) <<"gps data time >>>>>"<<timestamp<<endl;
+     LOG(INFO) <<"gps data is coming ----->>>>>"<< gps_data.translation()(0,0)<<"  "<<gps_data.translation()(1,0);
+     count_gps=0;
+ }
  // return common::make_unique<transform::Rigid3d>tracking_2d_to_map;
 }
 

@@ -29,7 +29,8 @@
 #include "cartographer/kalman_filter/gps_tracker.h"
 #include "cartographer/transform/transform.h"
 #include "glog/logging.h"
-
+#include <iostream>
+using namespace std;
 namespace cartographer {
 namespace kalman_filter {
 
@@ -304,17 +305,60 @@ void PoseTracker::AddImuAngularVelocityObservation(
   imu_tracker_.AddImuAngularVelocityObservation(time, imu_angular_velocity);
   Predict(time);
 }
-
+int count_pose=0;
+int64 laser_tiemstamp_first=0,gps_tiemstamp_first=0;
 void PoseTracker::AddPoseObservation(const common::Time time,
                                      const transform::Rigid3d& pose,
                                      const PoseCovariance& covariance) {
   Predict(time);
+  Eigen::Matrix<double, 6, 1> gps_observation;
 
+  if(laser_tiemstamp_first==0)
+    {
+        laser_tiemstamp_first=time.time_since_epoch().count();
+    }
+   if (gps_tiemstamp_first==0&&(gps_tracker.gps_flag==3||gps_tracker.gps_flag==4||gps_tracker.gps_flag==2))
+   {
+       gps_tiemstamp_first=gps_tracker.time;
+   }
+   int time_stamp_1=time.time_since_epoch().count()-laser_tiemstamp_first;
+   time_stamp_1=time_stamp_1/10000;
+   int time_stamp_2=gps_tracker.time-gps_tiemstamp_first;
   // Noise covariance is taken directly from the input values.
-  const GaussianDistribution<double, 6> delta(
-      Eigen::Matrix<double, 6, 1>::Zero(), covariance);
+  //time_point <system_clock,duration<int>> tp_seconds (duration<int>(1));
+ // cout<<"gps data stadus------>>>>>"<<time.time_since_epoch().count()<<"   "<<gps_tracker.gps_flag<<endl;
 
-  kalman_filter_.Observe<6>(
+ // cout<<"time_stamp_1  :  "<<time_stamp_1<<" "<<laser_tiemstamp_first<<endl;
+//  cout<<"time_stamp_2  :  "<<time_stamp_2<<" "<<gps_tiemstamp_first<<endl;
+  const int delta_t = time_stamp_1 - time_stamp_2;
+
+ // cout<<"gps data status : "<<delta_t<<"  "<<gps_tracker.gps_flag<<endl;
+
+
+  //if (abs(delta_t) < 300&&(gps_tracker.gps_flag==3||gps_tracker.gps_flag==4))
+   if(0)
+    {
+    cout<<"gps_data is ok"<<endl;
+    gps_observation(0,0)=gps_tracker.gps_pose.translation()(0,0);
+    gps_observation(1,0)=gps_tracker.gps_pose.translation()(1,0);
+    gps_observation(5,0)=gps_tracker.gps_pose.translation()(1,0);
+
+
+    Eigen::Matrix<double, 6, 6> temp=Eigen::Matrix<double, 6, 6>::Zero();
+  cout<<temp(0,0)<<" "<<temp(1,0)<<" "<<temp(2,0)<<" "
+  <<temp(0,1)<<" "<<temp(1,1)<<" "<<temp(2,1)<<" "
+  <<temp(0,2)<<" "<<temp(1,2)<<" "<<temp(2,2)<<" "
+  <<temp(0,3)<<" "<<temp(1,3)<<" "<<temp(2,3)<<endl;
+    temp(0,0)=gps_tracker.gps_covariance.translation()(0,0);
+    temp(1,1)=gps_tracker.gps_covariance.translation()(1,0);
+    temp(2,2)=covariance(2,2);
+    temp(3,3)=covariance(3,3);
+    temp(4,4)=covariance(4,4);
+    temp(5,5)=covariance(5,5);
+    GaussianDistribution<double, 6> delta(
+      Eigen::Matrix<double, 6, 1>::Zero(), temp);
+
+    kalman_filter_.Observe<6>(
       [this, &pose](const State& state) -> Eigen::Matrix<double, 6, 1> {
         const transform::Rigid3d state_pose = RigidFromState(state);
         const Eigen::Vector3d delta_orientation =
@@ -326,7 +370,29 @@ void PoseTracker::AddPoseObservation(const common::Time time,
         return_value << delta_translation, delta_orientation;
         return return_value;
       },
-      delta);
+      delta,gps_observation);
+  }
+  else
+
+  {
+   //   cout<<"gps_data is not ok"<<endl;
+     GaussianDistribution<double, 6> delta(
+      Eigen::Matrix<double, 6, 1>::Zero(), covariance);
+     kalman_filter_.Observe<6>(
+      [this, &pose](const State& state) -> Eigen::Matrix<double, 6, 1> {
+        const transform::Rigid3d state_pose = RigidFromState(state);
+        const Eigen::Vector3d delta_orientation =
+            transform::RotationQuaternionToAngleAxisVector(
+                pose.rotation().inverse() * state_pose.rotation());
+        const Eigen::Vector3d delta_translation =
+            state_pose.translation() - pose.translation();
+        Eigen::Matrix<double, 6, 1> return_value;
+        return_value << delta_translation, delta_orientation;
+        return return_value;
+      },
+      delta,gps_observation);
+  }
+
 }
 
 // Updates from the odometer are in the odometer's map-like frame, called the
@@ -382,6 +448,12 @@ PoseCovariance Embed3D(const Pose2DCovariance& embedded_covariance,
                        const double orientation_variance) {
   PoseCovariance covariance;
   covariance.setZero();
+
+  cout<<covariance(0,0)<<" "<<covariance(1,0)<<" "<<covariance(2,0)<<" "
+  <<covariance(0,1)<<" "<<covariance(1,1)<<" "<<covariance(2,1)<<" "
+  <<covariance(0,2)<<" "<<covariance(1,2)<<" "<<covariance(2,2)<<" "
+  <<covariance(0,3)<<" "<<covariance(1,3)<<" "<<covariance(2,3)<<endl;
+
   covariance.block<2, 2>(0, 0) = embedded_covariance.block<2, 2>(0, 0);
   covariance.block<2, 1>(0, 5) = embedded_covariance.block<2, 1>(0, 2);
   covariance.block<1, 2>(5, 0) = embedded_covariance.block<1, 2>(2, 0);
@@ -411,9 +483,21 @@ Gps_tracker PoseTracker:: GetGpsPose()
     return gps_tracker;
 }
 
-void  PoseTracker::SetGpsPose(const cartographer::transform::Rigid2d& gps_data)
+void  PoseTracker::SetGpsPose(int64 timestamp, const cartographer::transform::Rigid2d& gps_data,
+    const cartographer::transform::Rigid2d& gps_data_covariance,int32 gps_flag)
 {
+  //  LOG(INFO) <<"pose tracker gps data time >>>>>"<<timestamp<<endl;
+    gps_tracker.time=timestamp;
     gps_tracker.gps_pose=gps_data;
+    gps_tracker.gps_covariance=gps_data_covariance;
+    gps_tracker.gps_flag=gps_flag;
+    count_pose++;
+    if(count_pose==80)
+   {
+       cout<<"gps : "<<gps_data.translation()(0,0)+9.1411<<"  "<<gps_data.translation()(1,0)+60.6891<<endl;
+       cout<<"kalman : "<<kalman_filter_.GetBelief().GetMean()(0,0)<<"  "<<kalman_filter_.GetBelief().GetMean()(1,0)<<endl;
+       count_pose=0;
+   }
 }
 }  // namespace kalman_filter
 }  // namespace cartographer

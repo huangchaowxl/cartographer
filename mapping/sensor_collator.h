@@ -30,7 +30,7 @@
 #include "cartographer/common/time.h"
 #include "cartographer/sensor/sensor_packet_period_histogram_builder.h"
 #include "glog/logging.h"
-
+#include <iostream>
 namespace cartographer {
 namespace mapping {
 
@@ -71,6 +71,7 @@ class SensorCollator {
       });
       queue_keys_[trajectory_id].push_back(queue_key);
     }
+    std::cout<<"sensor_collector-----~~~~~~~~~????????"<<std::endl;
   }
 
   // Marks 'trajectory_id' as finished.

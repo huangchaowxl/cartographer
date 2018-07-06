@@ -30,7 +30,8 @@
 #include "cartographer/transform/transform.h"
 #include "ceres/ceres.h"
 #include "glog/logging.h"
-
+#include <iostream>
+using namespace std;
 namespace cartographer {
 namespace mapping_2d {
 namespace scan_matching {
@@ -74,8 +75,9 @@ void CeresScanMatcher::Match(const transform::Rigid2d& previous_pose,
   double ceres_pose_estimate[3] = {initial_pose_estimate.translation().x(),
                                    initial_pose_estimate.translation().y(),
                                    initial_pose_estimate.rotation().angle()};
-  ceres::Problem problem;
+    ceres::Problem problem;
   CHECK_GT(options_.occupied_space_cost_functor_weight(), 0.);
+
   problem.AddResidualBlock(
       new ceres::AutoDiffCostFunction<OccupiedSpaceCostFunctor, ceres::DYNAMIC,
                                       3>(
@@ -110,10 +112,13 @@ void CeresScanMatcher::Match(const transform::Rigid2d& previous_pose,
   ceres::Covariance covariance_computer(options);
   std::vector<std::pair<const double*, const double*>> covariance_blocks;
   covariance_blocks.emplace_back(ceres_pose_estimate, ceres_pose_estimate);
+
   CHECK(covariance_computer.Compute(covariance_blocks, &problem));
   double ceres_covariance[3 * 3];
+
   covariance_computer.GetCovarianceBlock(ceres_pose_estimate,
                                          ceres_pose_estimate, ceres_covariance);
+
   *covariance = Eigen::Map<kalman_filter::Pose2DCovariance>(ceres_covariance);
   *covariance *= options_.covariance_scale();
 }

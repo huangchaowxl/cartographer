@@ -53,7 +53,8 @@ class GlobalTrajectoryBuilder
 
   void AddGpsCalibData(const common::Time time, const cartographer::transform::Rigid2d& gps_calib_data) override ;
 
-  void AddGpsData(const common::Time time, const cartographer::transform::Rigid2d& gps_data) override;
+  void AddGpsData(int64 timestamp, const cartographer::transform::Rigid2d& gps_data,
+                  const cartographer::transform::Rigid2d& gps_data_covariance,int32 gps_flag) override;
 
  private:
   const proto::LocalTrajectoryBuilderOptions options_;

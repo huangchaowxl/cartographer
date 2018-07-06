@@ -91,7 +91,8 @@ class GlobalTrajectoryBuilderInterface {
 
   virtual void AddGpsCalibData(const common::Time time, const cartographer::transform::Rigid2d& gps_calib_data) = 0;
 
-  virtual void AddGpsData(const common::Time time, const cartographer::transform::Rigid2d& gps_data) = 0;
+  virtual void AddGpsData(int64 timestamp, const cartographer::transform::Rigid2d& gps_data,
+                  const cartographer::transform::Rigid2d& gps_data_covariance,int32 gps_flag) = 0;
 
 
 };

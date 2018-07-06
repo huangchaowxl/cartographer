@@ -127,7 +127,8 @@ class PoseTracker {
                                         transform::Rigid3d* pose,
                                         PoseCovariance* covariance);
   Gps_tracker GetGpsPose();
-  void SetGpsPose(const cartographer::transform::Rigid2d& gps_data);
+  void SetGpsPose(int64 timestamp, const cartographer::transform::Rigid2d& gps_data,
+    const cartographer::transform::Rigid2d& gps_data_covariance,int32 gps_flag);
   // Updates from an IMU reading (in the IMU frame).
   void AddImuLinearAccelerationObservation(
       common::Time time, const Eigen::Vector3d& imu_linear_acceleration);

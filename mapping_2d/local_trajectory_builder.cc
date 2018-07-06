@@ -112,9 +112,9 @@ void LocalTrajectoryBuilder::ScanMatch(
     const sensor::LaserFan& laser_fan_in_tracking_2d,
     transform::Rigid3d* pose_observation,
     kalman_filter::PoseCovariance* covariance_observation,bool offline) {
-//  const ProbabilityGrid& probability_grid =
- //     submaps_.Get(submaps_.matching_index())->probability_grid;
-  const ProbabilityGrid& probability_grid =full_map_grid;
+  const ProbabilityGrid& probability_grid =
+      submaps_.Get(submaps_.matching_index())->probability_grid;
+//  const ProbabilityGrid& probability_grid =full_map_grid;
  count_frame_2=count_frame_2+1;
   if (count_frame_2==90)
   {
@@ -172,7 +172,7 @@ std::unique_ptr<LocalTrajectoryBuilder::InsertionResult>
 LocalTrajectoryBuilder::AddHorizontalLaserFan(
     const common::Time time, const sensor::LaserFan3D& laser_fan) {
 
-  if(!read_grid)
+  if(read_grid)
   {
       read_grid_from_disk();
   }
@@ -199,7 +199,13 @@ LocalTrajectoryBuilder::AddHorizontalLaserFan(
           Eigen::Quaterniond(Eigen::AngleAxisd(
               -transform::GetYaw(pose_prediction), Eigen::Vector3d::UnitZ())) *
           pose_prediction.rotation());
-
+/*  cout<<"tracking_to_tracking_2d.translation : "<<tracking_to_tracking_2d.translation()(0,0)<<" "
+  <<tracking_to_tracking_2d.translation()(1,0)<<" "
+  <<tracking_to_tracking_2d.translation()(2,0)<<" "<<endl;
+  cout<<"tracking_to_tracking_2d.translation : "<<tracking_to_tracking_2d.rotation().w()<<" "
+  <<tracking_to_tracking_2d.rotation().x()<<" "
+  <<tracking_to_tracking_2d.rotation().y()<<" "
+  <<tracking_to_tracking_2d.rotation().z()<<" "<<endl;*/
   const sensor::LaserFan laser_fan_in_tracking_2d =
       BuildProjectedLaserFan(tracking_to_tracking_2d.cast<float>(), laser_fan);
 
@@ -298,6 +304,7 @@ void LocalTrajectoryBuilder::AddOdometerPose(
     LOG_EVERY_N(INFO, 100) << "PoseTracker not yet initialized.";
   } else {
     pose_tracker_->AddOdometerPoseObservation(time, pose, covariance);
+    cout<<"test  odometer data"<<endl;
   }
 }
 
@@ -310,14 +317,14 @@ void LocalTrajectoryBuilder::InitializePoseTracker(const common::Time time) {
 }
 void LocalTrajectoryBuilder::read_grid_from_disk()
 {
-    if(!read_grid)
+    if(read_grid)
     {
-        read_grid=1;
+        read_grid=0;
         ifstream infile;
         ifstream infile_2;
         int num_x=0,num_y=0,offset_x=0,offset_y=0;
-        infile.open("/home/wxl/ros_slam/ctakin_ws/src/cartographer_ros/my_package/src/data/2018_06_01 14_51_17.txt");
-        infile_2.open("/home/wxl/ros_slam/ctakin_ws/src/cartographer_ros/my_package/src/data/2018_06_01 14_51_17_2.txt");
+        infile.open("/home/wxl/ros_slam/catkin_ws/src/cartographer_ros/my_package/src/data/2018_06_01 14_51_17.txt");
+        infile_2.open("/home/wxl/ros_slam/catkin_ws/src/cartographer_ros/my_package/src/data/2018_06_01 14_51_17_2.txt");
         string s1,s2,s3,s4;
         getline(infile_2,s1);
         getline(infile_2,s2);

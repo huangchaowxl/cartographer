@@ -29,6 +29,8 @@
 #include "cartographer/transform/transform.h"
 #include "glog/logging.h"
 
+#include "iostream"
+using namespace std;
 namespace cartographer {
 namespace mapping_2d {
 namespace scan_matching {
@@ -103,7 +105,6 @@ double RealTimeCorrelativeScanMatcher::Match(
   const SearchParameters search_parameters(
       options_.linear_search_window(), options_.angular_search_window(),
       rotated_point_cloud, probability_grid.limits().resolution());
-
   const std::vector<sensor::PointCloud2D> rotated_scans =
       GenerateRotatedScans(rotated_point_cloud, search_parameters);
   const std::vector<DiscreteScan> discrete_scans = DiscretizeScans(
